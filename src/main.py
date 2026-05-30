@@ -1,10 +1,18 @@
 import M5
 from M5 import *
 
+import display
+from mock_data import MOCK_EVENTS
+
+# Phase 2: static values. Real battery/time wired in Phase 4.
+MOCK_BATTERY_PCT = 84
+MOCK_LAST_UPDATED = "09:15"
+
 
 def setup():
     M5.begin()
-    print("m5paper-gcal: hello")
+    print("m5paper-gcal: rendering mock events")
+    display.render_all(MOCK_EVENTS, MOCK_BATTERY_PCT, MOCK_LAST_UPDATED)
 
 
 def loop():
