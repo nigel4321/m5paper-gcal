@@ -67,6 +67,19 @@ def test_group_events_by_day_preserves_order_and_splits_days():
     assert len(groups[2][1]) == 1
 
 
+def test_format_clock():
+    assert display.format_clock((2026, 5, 30, 9, 5, 0, 0, 0)) == "09:05"
+    assert display.format_clock((2026, 5, 30, 14, 30, 0, 0, 0)) == "14:30"
+
+
 def test_render_all_runs_with_stubbed_device():
     # M5 is stubbed in conftest; this exercises the full render path for crashes.
     display.render_all(MOCK_EVENTS, 84, "09:15")
+
+
+def test_render_all_with_warning_runs():
+    display.render_all(MOCK_EVENTS, 84, "09:15", warning="update failed")
+
+
+def test_render_error_runs():
+    display.render_error("No WiFi", "Could not connect", 84)

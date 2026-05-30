@@ -1,48 +1,69 @@
+import time
+
 import M5
-from M5 import *
 
 import calendar
 import config
+import device
 import display
-from mock_data import MOCK_EVENTS
-
-# Phase 2: static values. Real battery/time wired in Phase 4.
-MOCK_BATTERY_PCT = 84
-MOCK_LAST_UPDATED = "09:15"
 
 
-def fetch_events():
-    """Fetch live events. WiFi connection is added in Phase 4; until then
-    (or on any failure) we fall back to mock data so the device still renders."""
-    token = calendar.refresh_access_token(
-        config.CLIENT_ID, config.CLIENT_SECRET, config.REFRESH_TOKEN
-    )
-    return calendar.get_upcoming_events(token, config.MAX_EVENTS)
+def run_cycle():
+    """One wake cycle: connect, fetch, render, disconnect."""
+    events = None
+    error = None
+
+    if not device.connect_wifi(config.WIFI_SSID, config.WIFI_PASSWORD):
+        error = ("No WiFi", "Could not connect to {}".format(config.WIFI_SSID))
+    else:
+        try:
+            device.sync_time()
+        except Exception as e:
+            print("time sync failed:", e)  # non-fatal; RTC may already be set
+        try:
+            token = calendar.refresh_access_token(
+                config.CLIENT_ID, config.CLIENT_SECRET, config.REFRESH_TOKEN
+            )
+        except Exception as e:
+            print("auth failed:", e)
+            error = ("Auth error", "Token refresh failed")
+        else:
+            try:
+                events = calendar.get_upcoming_events(token, config.MAX_EVENTS)
+                calendar.save_events(events)
+            except Exception as e:
+                print("fetch failed:", e)  # fall through to stale cache below
+        device.disconnect_wifi()
+
+    battery = device.battery_percent()
+    updated = display.format_clock(time.gmtime())
+
+    if events is not None:
+        display.render_all(events, battery, updated)
+    elif error:
+        display.render_error(error[0], error[1], battery)
+    else:
+        cached = calendar.load_events()
+        if cached:
+            display.render_all(cached, battery, updated, warning="update failed")
+        else:
+            display.render_error("Update failed", "Could not reach Google Calendar", battery)
 
 
-def setup():
+def main():
     M5.begin()
     try:
-        events = fetch_events()
-        print("m5paper-gcal: rendering live events")
+        run_cycle()
     except Exception as e:
-        events = MOCK_EVENTS
-        print("m5paper-gcal: fetch failed ({}), rendering mock events".format(e))
-    display.render_all(events, MOCK_BATTERY_PCT, MOCK_LAST_UPDATED)
-
-
-def loop():
-    M5.update()
-
-
-if __name__ == "__main__":
-    try:
-        setup()
-        while True:
-            loop()
-    except (Exception, KeyboardInterrupt) as e:
         try:
             from utility import print_error_msg
             print_error_msg(e)
         except ImportError:
-            print("please update all packages")
+            print(e)
+    finally:
+        # Always sleep, even after an unexpected error, to preserve battery.
+        device.deep_sleep(config.SLEEP_INTERVAL_MIN)
+
+
+if __name__ == "__main__":
+    main()

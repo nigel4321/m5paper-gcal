@@ -151,15 +151,23 @@ def render_event(event, y):
     return y + 44
 
 
-def render_footer(last_updated):
+def format_clock(t):
+    """time tuple -> 'HH:MM'."""
+    return "{:02d}:{:02d}".format(t[3], t[4])
+
+
+def render_footer(last_updated, warning=None):
     y = HEIGHT - FOOTER_H
     M5.Lcd.drawFastHLine(MARGIN, y, WIDTH - 2 * MARGIN, BLACK)
     M5.Lcd.setTextSize(2)
     M5.Lcd.setTextColor(GREY)
     M5.Lcd.drawString("Updated {}".format(last_updated), MARGIN, y + 12)
+    if warning:
+        M5.Lcd.setTextColor(BLACK)
+        M5.Lcd.drawString("! " + warning, WIDTH - MARGIN - 240, y + 12)
 
 
-def render_all(events, battery_pct, last_updated):
+def render_all(events, battery_pct, last_updated, warning=None):
     """Full-screen refresh: header, day-grouped events, footer."""
     M5.Lcd.setRotation(1)
     M5.Lcd.fillScreen(WHITE)
@@ -170,4 +178,17 @@ def render_all(events, battery_pct, last_updated):
         for event in day_events:
             y = render_event(event, y)
         y += 8
-    render_footer(last_updated)
+    render_footer(last_updated, warning)
+
+
+def render_error(title, detail, battery_pct):
+    """Full-screen error state (no WiFi / auth failure / unreachable API)."""
+    M5.Lcd.setRotation(1)
+    M5.Lcd.fillScreen(WHITE)
+    render_header("Next 5 events", battery_pct)
+    M5.Lcd.setTextColor(BLACK)
+    M5.Lcd.setTextSize(5)
+    M5.Lcd.drawString(title, MARGIN, 210)
+    M5.Lcd.setTextSize(2)
+    M5.Lcd.setTextColor(GREY)
+    M5.Lcd.drawString(detail, MARGIN, 290)
