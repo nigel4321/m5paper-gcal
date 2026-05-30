@@ -25,7 +25,7 @@ readable the whole time the device is asleep.
 | `src/display.py` | Layout and rendering (header, events, footer, error states) |
 | `src/calendar.py` | Google Calendar OAuth, event fetch, and on-flash cache |
 | `src/device.py` | WiFi, NTP time sync, battery read, deep sleep |
-| `src/config.py` | WiFi credentials, OAuth credentials, settings |
+| `src/config.example.py` | Template for `config.py` (WiFi/OAuth credentials, settings) |
 | `src/mock_data.py` | Sample events used for tests / offline display checks |
 | `tools/get_token.py` | One-time desktop helper to obtain a refresh token |
 
@@ -64,8 +64,13 @@ readable the whole time the device is asleep.
 13. It then prints a `REFRESH_TOKEN = "..."` line.
 
 ### E. Configure the device
-14. Edit `src/config.py` and fill in `CLIENT_ID`, `CLIENT_SECRET`,
-    `REFRESH_TOKEN`, plus `WIFI_SSID` / `WIFI_PASSWORD`.
+14. Copy the template and fill in your values:
+    ```
+    cp src/config.example.py src/config.py
+    ```
+    Edit `src/config.py` and set `CLIENT_ID`, `CLIENT_SECRET`, `REFRESH_TOKEN`,
+    plus `WIFI_SSID` / `WIFI_PASSWORD`. `config.py` is gitignored, so your
+    secrets are never committed.
 
 ## Uploading to the device
 

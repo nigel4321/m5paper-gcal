@@ -3,3 +3,6 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .venv/
+
+# Local secrets — copy config.example.py to config.py
+src/config.py

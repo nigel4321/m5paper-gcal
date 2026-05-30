@@ -1,3 +1,6 @@
+# Copy this file to config.py and fill in your values.
+# config.py is gitignored so your secrets are never committed.
+
 # WiFi credentials
 WIFI_SSID = ""
 WIFI_PASSWORD = ""
