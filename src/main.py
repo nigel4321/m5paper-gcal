@@ -1,6 +1,8 @@
 import M5
 from M5 import *
 
+import calendar
+import config
 import display
 from mock_data import MOCK_EVENTS
 
@@ -9,10 +11,24 @@ MOCK_BATTERY_PCT = 84
 MOCK_LAST_UPDATED = "09:15"
 
 
+def fetch_events():
+    """Fetch live events. WiFi connection is added in Phase 4; until then
+    (or on any failure) we fall back to mock data so the device still renders."""
+    token = calendar.refresh_access_token(
+        config.CLIENT_ID, config.CLIENT_SECRET, config.REFRESH_TOKEN
+    )
+    return calendar.get_upcoming_events(token, config.MAX_EVENTS)
+
+
 def setup():
     M5.begin()
-    print("m5paper-gcal: rendering mock events")
-    display.render_all(MOCK_EVENTS, MOCK_BATTERY_PCT, MOCK_LAST_UPDATED)
+    try:
+        events = fetch_events()
+        print("m5paper-gcal: rendering live events")
+    except Exception as e:
+        events = MOCK_EVENTS
+        print("m5paper-gcal: fetch failed ({}), rendering mock events".format(e))
+    display.render_all(events, MOCK_BATTERY_PCT, MOCK_LAST_UPDATED)
 
 
 def loop():
