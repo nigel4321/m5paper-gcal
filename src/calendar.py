@@ -1,9 +1,11 @@
+import json
 import time
 
 import urequests
 
 TOKEN_URL = "https://oauth2.googleapis.com/token"
 EVENTS_URL = "https://www.googleapis.com/calendar/v3/calendars/primary/events"
+CACHE_PATH = "events.json"
 
 
 # --- Pure helpers (no network; unit tested on host) ---
@@ -39,6 +41,22 @@ def _normalise_event(item):
 def parse_events(data):
     """Parse a Calendar API 'events list' response body into our event dicts."""
     return [_normalise_event(item) for item in data.get("items", [])]
+
+
+# --- Cache (last-good events survive deep sleep on flash) ---
+
+def save_events(events, path=CACHE_PATH):
+    with open(path, "w") as f:
+        json.dump(events, f)
+
+
+def load_events(path=CACHE_PATH):
+    """Return cached events, or None if nothing has been cached yet."""
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except OSError:
+        return None
 
 
 # --- Network (MicroPython urequests) ---

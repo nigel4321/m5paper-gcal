@@ -54,6 +54,18 @@ def test_parse_events_empty():
     assert calendar.parse_events({}) == []
 
 
+def test_save_and_load_events_round_trip(tmp_path):
+    path = str(tmp_path / "events.json")
+    events = [{"title": "Meeting", "start": "2026-05-30T09:00:00Z",
+               "end": "2026-05-30T09:30:00Z", "location": "", "all_day": False}]
+    calendar.save_events(events, path)
+    assert calendar.load_events(path) == events
+
+
+def test_load_events_missing_returns_none(tmp_path):
+    assert calendar.load_events(str(tmp_path / "nope.json")) is None
+
+
 def _stub_response(status_code, payload):
     resp = MagicMock()
     resp.status_code = status_code

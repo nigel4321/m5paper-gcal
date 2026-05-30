@@ -157,11 +157,13 @@ Boot → Connect WiFi → Refresh token → Fetch events → Render display → 
 ```
 
 ### Steps
-1. Implement WiFi connect/disconnect in `config.py`
-2. Wrap main loop in try/except: on failure, render an error state on display before sleeping
+1. Implement WiFi connect/disconnect in a new `device.py` module (kept out of `config.py`,
+   which stays pure settings/credentials), plus NTP time sync, battery read, and deep sleep
+2. Wrap the wake cycle in try/except: on failure, render an error state on display before sleeping
 3. Implement deep sleep via `machine.deepsleep(ms)` — configurable interval (default 30 min)
 4. Add battery % read to pass into `render_header()`
-5. Tune sleep interval based on real battery measurements
+5. Persist last-good events to flash (`events.json`) so stale data can be shown when a fetch fails
+6. Tune sleep interval based on real battery measurements
 
 ### Error states to handle
 - WiFi connect failure → "No WiFi" on display
