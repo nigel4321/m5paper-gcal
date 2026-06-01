@@ -77,12 +77,9 @@ def group_events_by_day(events):
 # --- Device rendering (M5Paper / UIFlow 2.0) ---
 
 def _use(font, color=BLACK):
-    # Single-arg setTextColor → transparent mode in M5GFX, so the white
-    # screen from fillScreen(WHITE) shows through. Two-arg form caused
-    # intermittent black-rect bg fills on this firmware.
     M5.Lcd.setFont(font)
     M5.Lcd.setTextSize(1)
-    M5.Lcd.setTextColor(color)
+    M5.Lcd.setTextColor(color, WHITE)
 
 
 def _draw_battery(x, y, pct):
