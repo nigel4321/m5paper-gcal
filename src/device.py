@@ -12,6 +12,11 @@ def connect_wifi(ssid, password, timeout_s=15):
     wlan.active(True)
     if wlan.isconnected():
         return True
+    try:
+        wlan.disconnect()
+    except OSError:
+        pass
+    time.sleep(0.1)
     wlan.connect(ssid, password)
     deadline = time.time() + timeout_s
     while not wlan.isconnected():

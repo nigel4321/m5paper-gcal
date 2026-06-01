@@ -1,7 +1,10 @@
 import json
 import time
 
-import urequests
+try:
+    import requests
+except ImportError:
+    import urequests as requests
 
 TOKEN_URL = "https://oauth2.googleapis.com/token"
 EVENTS_URL = "https://www.googleapis.com/calendar/v3/calendars/primary/events"
@@ -59,7 +62,7 @@ def load_events(path=CACHE_PATH):
         return None
 
 
-# --- Network (MicroPython urequests) ---
+# --- Network (MicroPython requests / urequests) ---
 
 def refresh_access_token(client_id, client_secret, refresh_token):
     """Exchange the stored refresh token for a short-lived access token."""
@@ -69,7 +72,7 @@ def refresh_access_token(client_id, client_secret, refresh_token):
             client_id, client_secret, refresh_token
         )
     )
-    resp = urequests.post(
+    resp = requests.post(
         TOKEN_URL,
         data=body,
         headers={"Content-Type": "application/x-www-form-urlencoded"},
@@ -91,7 +94,7 @@ def get_upcoming_events(access_token, max_results=5, time_min=None):
             EVENTS_URL, max_results, _quote(time_min)
         )
     )
-    resp = urequests.get(url, headers={"Authorization": "Bearer " + access_token})
+    resp = requests.get(url, headers={"Authorization": "Bearer " + access_token})
     try:
         if resp.status_code != 200:
             raise RuntimeError("events fetch failed: HTTP {}".format(resp.status_code))

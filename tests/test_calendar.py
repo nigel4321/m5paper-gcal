@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock
 
-import urequests  # stubbed in conftest
+import requests  # stubbed in conftest
 
 from src import calendar
 
@@ -74,13 +74,13 @@ def _stub_response(status_code, payload):
 
 
 def test_refresh_access_token_success():
-    urequests.post.return_value = _stub_response(200, {"access_token": "abc123"})
+    requests.post.return_value = _stub_response(200, {"access_token": "abc123"})
     assert calendar.refresh_access_token("cid", "secret", "rtok") == "abc123"
-    urequests.post.return_value.close.assert_called_once()
+    requests.post.return_value.close.assert_called_once()
 
 
 def test_refresh_access_token_http_error():
-    urequests.post.return_value = _stub_response(400, {"error": "invalid_grant"})
+    requests.post.return_value = _stub_response(400, {"error": "invalid_grant"})
     try:
         calendar.refresh_access_token("cid", "secret", "rtok")
         assert False, "expected RuntimeError"
@@ -91,11 +91,11 @@ def test_refresh_access_token_http_error():
 def test_get_upcoming_events_builds_request_and_parses():
     payload = {"items": [{"summary": "Meeting", "start": {"dateTime": "2026-05-30T09:00:00Z"},
                           "end": {"dateTime": "2026-05-30T09:30:00Z"}}]}
-    urequests.get.return_value = _stub_response(200, payload)
+    requests.get.return_value = _stub_response(200, payload)
     events = calendar.get_upcoming_events("tok", max_results=5, time_min="2026-05-30T08:00:00Z")
     assert events[0]["title"] == "Meeting"
-    url = urequests.get.call_args[0][0]
+    url = requests.get.call_args[0][0]
     assert "maxResults=5" in url
     assert "timeMin=2026-05-30T08%3A00%3A00Z" in url
-    headers = urequests.get.call_args[1]["headers"]
+    headers = requests.get.call_args[1]["headers"]
     assert headers["Authorization"] == "Bearer tok"
