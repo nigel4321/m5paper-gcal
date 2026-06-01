@@ -11,10 +11,9 @@ GREY = 0x888888
 
 # Layout
 MARGIN = 24
-FOOTER_H = 44
-TIME_COL_W = 110
-TITLE_MAX_CHARS = 28
-DETAIL_MAX_CHARS = 42
+FOOTER_H = 60
+TIME_COL_W = 140
+TITLE_MAX_CHARS = 16
 
 _WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 _MONTHS = [
@@ -63,13 +62,6 @@ def truncate(text, max_chars):
     return text[: max_chars - 1] + "…"
 
 
-def format_detail_line(event):
-    """Secondary line: location only (empty if all-day or no location)."""
-    if event.get("all_day"):
-        return ""
-    return truncate(event.get("location", ""), DETAIL_MAX_CHARS)
-
-
 def group_events_by_day(events):
     """[(date_str, [event, ...]), ...] preserving input order."""
     groups = []
@@ -85,41 +77,39 @@ def group_events_by_day(events):
 # --- Device rendering (M5Paper / UIFlow 2.0) ---
 
 def _use(font, color=BLACK):
+    # Single-arg setTextColor → transparent mode in M5GFX, so the white
+    # screen from fillScreen(WHITE) shows through. Two-arg form caused
+    # intermittent black-rect bg fills on this firmware.
     M5.Lcd.setFont(font)
     M5.Lcd.setTextSize(1)
-    M5.Lcd.setTextColor(color, WHITE)
+    M5.Lcd.setTextColor(color)
 
 
 def _draw_battery(x, y, pct):
     """Battery glyph with proportional fill, right-aligned ending at x."""
-    body_w, body_h = 44, 22
+    body_w, body_h = 52, 28
     bx = x - body_w
     M5.Lcd.drawRect(bx, y, body_w, body_h, BLACK)
-    M5.Lcd.fillRect(x, y + 6, 4, 10, BLACK)  # terminal nub
+    M5.Lcd.fillRect(x, y + 8, 4, 12, BLACK)  # terminal nub
     fill_w = int((body_w - 4) * max(0, min(100, pct)) / 100)
     if fill_w > 0:
         M5.Lcd.fillRect(bx + 2, y + 2, fill_w, body_h - 4, BLACK)
-    _use(M5.Lcd.FONTS.Montserrat16, BLACK)
-    M5.Lcd.drawString("{}%".format(pct), bx - 52, y + 2)
+    _use(M5.Lcd.FONTS.Montserrat18, BLACK)
+    M5.Lcd.drawString("{}%".format(pct), bx - 60, y + 4)
 
 
 def render_day_heading(date_str, y):
-    _use(M5.Lcd.FONTS.Montserrat18, BLACK)
+    _use(M5.Lcd.FONTS.Montserrat24, BLACK)
     M5.Lcd.drawString(format_date_heading(date_str), MARGIN, y)
-    return y + 30
+    return y + 40
 
 
 def render_event(event, y):
     time_label = "All day" if event.get("all_day") else format_time(event["start"])
-    _use(M5.Lcd.FONTS.Montserrat24, BLACK)
+    _use(M5.Lcd.FONTS.Montserrat40, BLACK)
     M5.Lcd.drawString(time_label, MARGIN, y)
     M5.Lcd.drawString(truncate(event["title"], TITLE_MAX_CHARS), MARGIN + TIME_COL_W, y)
-    detail = format_detail_line(event)
-    if detail:
-        _use(M5.Lcd.FONTS.Montserrat16, GREY)
-        M5.Lcd.drawString(detail, MARGIN + TIME_COL_W, y + 34)
-        return y + 64
-    return y + 42
+    return y + 60
 
 
 def format_clock(t):
@@ -130,12 +120,12 @@ def format_clock(t):
 def render_footer(last_updated, battery_pct, warning=None):
     y = HEIGHT - FOOTER_H
     M5.Lcd.drawLine(MARGIN, y, WIDTH - MARGIN, y, BLACK)
-    _use(M5.Lcd.FONTS.Montserrat16, GREY)
+    _use(M5.Lcd.FONTS.Montserrat24, BLACK)
     text = "Updated {}".format(last_updated)
     if warning:
         text += "  ! {}".format(warning)
-    M5.Lcd.drawString(text, MARGIN, y + 14)
-    _draw_battery(WIDTH - MARGIN, y + 12, battery_pct)
+    M5.Lcd.drawString(text, MARGIN, y + 18)
+    _draw_battery(WIDTH - MARGIN, y + 16, battery_pct)
 
 
 def render_all(events, battery_pct, last_updated, warning=None):
@@ -147,7 +137,7 @@ def render_all(events, battery_pct, last_updated, warning=None):
         y = render_day_heading(date_str, y)
         for event in day_events:
             y = render_event(event, y)
-        y += 12
+        y += 20
     render_footer(last_updated, battery_pct, warning)
 
 
@@ -155,8 +145,8 @@ def render_error(title, detail, battery_pct):
     """Full-screen error state (no WiFi / auth failure / unreachable API)."""
     M5.Lcd.setRotation(0)
     M5.Lcd.fillScreen(WHITE)
-    _use(M5.Lcd.FONTS.Montserrat40, BLACK)
+    _use(M5.Lcd.FONTS.Montserrat48, BLACK)
     M5.Lcd.drawString(title, MARGIN, 360)
-    _use(M5.Lcd.FONTS.Montserrat18, GREY)
-    M5.Lcd.drawString(detail, MARGIN, 420)
+    _use(M5.Lcd.FONTS.Montserrat24, BLACK)
+    M5.Lcd.drawString(detail, MARGIN, 440)
     render_footer("", battery_pct)

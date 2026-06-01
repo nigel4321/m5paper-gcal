@@ -24,31 +24,6 @@ def test_truncate():
     assert len(display.truncate("a much longer string", 10)) == 10
 
 
-def test_format_detail_line_returns_location():
-    event = {
-        "start": "2026-05-30T09:00:00",
-        "end": "2026-05-30T09:30:00",
-        "location": "Google Meet",
-        "all_day": False,
-    }
-    assert display.format_detail_line(event) == "Google Meet"
-
-
-def test_format_detail_line_no_location_is_empty():
-    event = {
-        "start": "2026-05-31T10:00:00",
-        "end": "2026-05-31T10:45:00",
-        "location": "",
-        "all_day": False,
-    }
-    assert display.format_detail_line(event) == ""
-
-
-def test_format_detail_line_all_day_is_empty():
-    event = {"start": "2026-05-31", "end": "2026-05-31", "location": "", "all_day": True}
-    assert display.format_detail_line(event) == ""
-
-
 def test_group_events_by_day_preserves_order_and_splits_days():
     groups = display.group_events_by_day(MOCK_EVENTS)
     assert [date for date, _ in groups] == ["2026-05-30", "2026-05-31", "2026-06-01"]
