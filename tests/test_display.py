@@ -18,40 +18,30 @@ def test_format_time():
     assert display.format_time("2026-05-30T09:00:00") == "09:00"
 
 
-def test_format_duration():
-    assert display.format_duration("2026-05-30T09:00:00", "2026-05-30T09:30:00") == "30 min"
-    assert display.format_duration("2026-05-30T11:00:00", "2026-05-30T12:00:00") == "1 hr"
-    assert display.format_duration("2026-05-30T09:00:00", "2026-05-30T10:45:00") == "1 hr 45 min"
-
-
-def test_format_duration_across_midnight():
-    assert display.format_duration("2026-05-30T23:30:00", "2026-05-31T00:30:00") == "1 hr"
-
-
 def test_truncate():
     assert display.truncate("short", 10) == "short"
     assert display.truncate("a much longer string", 10) == "a much lo…"
     assert len(display.truncate("a much longer string", 10)) == 10
 
 
-def test_format_detail_line_location_and_duration():
+def test_format_detail_line_returns_location():
     event = {
         "start": "2026-05-30T09:00:00",
         "end": "2026-05-30T09:30:00",
         "location": "Google Meet",
         "all_day": False,
     }
-    assert display.format_detail_line(event) == "Google Meet · 30 min"
+    assert display.format_detail_line(event) == "Google Meet"
 
 
-def test_format_detail_line_no_location():
+def test_format_detail_line_no_location_is_empty():
     event = {
         "start": "2026-05-31T10:00:00",
         "end": "2026-05-31T10:45:00",
         "location": "",
         "all_day": False,
     }
-    assert display.format_detail_line(event) == "45 min"
+    assert display.format_detail_line(event) == ""
 
 
 def test_format_detail_line_all_day_is_empty():

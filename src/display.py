@@ -1,8 +1,8 @@
 import M5
 
-# M5Paper landscape resolution (after setRotation(1))
-WIDTH = 960
-HEIGHT = 540
+# M5Paper portrait resolution (after setRotation(0))
+WIDTH = 540
+HEIGHT = 960
 
 # Greyscale colours (M5GFX RGB565-style hex; e-ink renders as grey levels)
 BLACK = 0x000000
@@ -11,10 +11,10 @@ GREY = 0x888888
 
 # Layout
 MARGIN = 24
-HEADER_H = 64
 FOOTER_H = 44
-TITLE_MAX_CHARS = 34
-DETAIL_MAX_CHARS = 40
+TIME_COL_W = 110
+TITLE_MAX_CHARS = 28
+DETAIL_MAX_CHARS = 42
 
 _WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 _MONTHS = [
@@ -57,23 +57,6 @@ def format_time(start):
     return start[11:16]
 
 
-def format_duration(start, end):
-    """Minutes between two ISO datetimes, formatted as '30 min' / '1 hr' / '1 hr 30 min'."""
-    sy, sm, sd = int(start[:4]), int(start[5:7]), int(start[8:10])
-    ey, em, ed = int(end[:4]), int(end[5:7]), int(end[8:10])
-    start_min = _date_ordinal(sy, sm, sd) * 1440 + int(start[11:13]) * 60 + int(start[14:16])
-    end_min = _date_ordinal(ey, em, ed) * 1440 + int(end[11:13]) * 60 + int(end[14:16])
-    total = end_min - start_min
-    if total <= 0:
-        return ""
-    hrs, mins = total // 60, total % 60
-    if hrs == 0:
-        return "{} min".format(mins)
-    if mins == 0:
-        return "{} hr".format(hrs)
-    return "{} hr {} min".format(hrs, mins)
-
-
 def truncate(text, max_chars):
     if len(text) <= max_chars:
         return text
@@ -81,16 +64,10 @@ def truncate(text, max_chars):
 
 
 def format_detail_line(event):
-    """Secondary line: 'location · duration', or whichever part is present."""
+    """Secondary line: location only (empty if all-day or no location)."""
     if event.get("all_day"):
         return ""
-    duration = format_duration(event["start"], event["end"])
-    location = event.get("location", "")
-    if location and duration:
-        line = "{} · {}".format(location, duration)
-    else:
-        line = location or duration
-    return truncate(line, DETAIL_MAX_CHARS)
+    return truncate(event.get("location", ""), DETAIL_MAX_CHARS)
 
 
 def group_events_by_day(events):
@@ -107,48 +84,42 @@ def group_events_by_day(events):
 
 # --- Device rendering (M5Paper / UIFlow 2.0) ---
 
+def _use(font, color=BLACK):
+    M5.Lcd.setFont(font)
+    M5.Lcd.setTextSize(1)
+    M5.Lcd.setTextColor(color, WHITE)
+
+
 def _draw_battery(x, y, pct):
     """Battery glyph with proportional fill, right-aligned ending at x."""
-    body_w, body_h = 48, 24
+    body_w, body_h = 44, 22
     bx = x - body_w
     M5.Lcd.drawRect(bx, y, body_w, body_h, BLACK)
-    M5.Lcd.fillRect(x, y + 7, 4, 10, BLACK)  # terminal nub
+    M5.Lcd.fillRect(x, y + 6, 4, 10, BLACK)  # terminal nub
     fill_w = int((body_w - 4) * max(0, min(100, pct)) / 100)
     if fill_w > 0:
         M5.Lcd.fillRect(bx + 2, y + 2, fill_w, body_h - 4, BLACK)
-    M5.Lcd.setTextSize(2)
-    M5.Lcd.setTextColor(BLACK)
-    M5.Lcd.drawString("{}%".format(pct), bx - 56, y + 2)
-
-
-def render_header(title, battery_pct):
-    M5.Lcd.setTextSize(3)
-    M5.Lcd.setTextColor(BLACK)
-    M5.Lcd.drawString(title, MARGIN, 18)
-    _draw_battery(WIDTH - MARGIN, 18, battery_pct)
-    M5.Lcd.drawFastHLine(MARGIN, HEADER_H, WIDTH - 2 * MARGIN, BLACK)
+    _use(M5.Lcd.FONTS.Montserrat16, BLACK)
+    M5.Lcd.drawString("{}%".format(pct), bx - 52, y + 2)
 
 
 def render_day_heading(date_str, y):
-    M5.Lcd.setTextSize(2)
-    M5.Lcd.setTextColor(GREY)
+    _use(M5.Lcd.FONTS.Montserrat18, BLACK)
     M5.Lcd.drawString(format_date_heading(date_str), MARGIN, y)
     return y + 30
 
 
 def render_event(event, y):
-    M5.Lcd.setTextColor(BLACK)
     time_label = "All day" if event.get("all_day") else format_time(event["start"])
-    M5.Lcd.setTextSize(3)
+    _use(M5.Lcd.FONTS.Montserrat24, BLACK)
     M5.Lcd.drawString(time_label, MARGIN, y)
-    M5.Lcd.drawString(truncate(event["title"], TITLE_MAX_CHARS), MARGIN + 130, y)
+    M5.Lcd.drawString(truncate(event["title"], TITLE_MAX_CHARS), MARGIN + TIME_COL_W, y)
     detail = format_detail_line(event)
     if detail:
-        M5.Lcd.setTextSize(2)
-        M5.Lcd.setTextColor(GREY)
-        M5.Lcd.drawString(detail, MARGIN + 130, y + 30)
+        _use(M5.Lcd.FONTS.Montserrat16, GREY)
+        M5.Lcd.drawString(detail, MARGIN + TIME_COL_W, y + 34)
         return y + 64
-    return y + 44
+    return y + 42
 
 
 def format_clock(t):
@@ -156,39 +127,36 @@ def format_clock(t):
     return "{:02d}:{:02d}".format(t[3], t[4])
 
 
-def render_footer(last_updated, warning=None):
+def render_footer(last_updated, battery_pct, warning=None):
     y = HEIGHT - FOOTER_H
-    M5.Lcd.drawFastHLine(MARGIN, y, WIDTH - 2 * MARGIN, BLACK)
-    M5.Lcd.setTextSize(2)
-    M5.Lcd.setTextColor(GREY)
-    M5.Lcd.drawString("Updated {}".format(last_updated), MARGIN, y + 12)
+    M5.Lcd.drawLine(MARGIN, y, WIDTH - MARGIN, y, BLACK)
+    _use(M5.Lcd.FONTS.Montserrat16, GREY)
+    text = "Updated {}".format(last_updated)
     if warning:
-        M5.Lcd.setTextColor(BLACK)
-        M5.Lcd.drawString("! " + warning, WIDTH - MARGIN - 240, y + 12)
+        text += "  ! {}".format(warning)
+    M5.Lcd.drawString(text, MARGIN, y + 14)
+    _draw_battery(WIDTH - MARGIN, y + 12, battery_pct)
 
 
 def render_all(events, battery_pct, last_updated, warning=None):
-    """Full-screen refresh: header, day-grouped events, footer."""
-    M5.Lcd.setRotation(1)
+    """Full-screen refresh: day-grouped events, footer with battery."""
+    M5.Lcd.setRotation(0)
     M5.Lcd.fillScreen(WHITE)
-    render_header("Next 5 events", battery_pct)
-    y = HEADER_H + 20
+    y = MARGIN
     for date_str, day_events in group_events_by_day(events):
         y = render_day_heading(date_str, y)
         for event in day_events:
             y = render_event(event, y)
-        y += 8
-    render_footer(last_updated, warning)
+        y += 12
+    render_footer(last_updated, battery_pct, warning)
 
 
 def render_error(title, detail, battery_pct):
     """Full-screen error state (no WiFi / auth failure / unreachable API)."""
-    M5.Lcd.setRotation(1)
+    M5.Lcd.setRotation(0)
     M5.Lcd.fillScreen(WHITE)
-    render_header("Next 5 events", battery_pct)
-    M5.Lcd.setTextColor(BLACK)
-    M5.Lcd.setTextSize(5)
-    M5.Lcd.drawString(title, MARGIN, 210)
-    M5.Lcd.setTextSize(2)
-    M5.Lcd.setTextColor(GREY)
-    M5.Lcd.drawString(detail, MARGIN, 290)
+    _use(M5.Lcd.FONTS.Montserrat40, BLACK)
+    M5.Lcd.drawString(title, MARGIN, 360)
+    _use(M5.Lcd.FONTS.Montserrat18, GREY)
+    M5.Lcd.drawString(detail, MARGIN, 420)
+    render_footer("", battery_pct)
