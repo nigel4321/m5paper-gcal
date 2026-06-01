@@ -76,10 +76,11 @@ def group_events_by_day(events):
 
 # --- Device rendering (M5Paper / UIFlow 2.0) ---
 
-def _use(font, color=BLACK):
+def _draw(font, text, x, y, color=BLACK):
     M5.Lcd.setFont(font)
     M5.Lcd.setTextSize(1)
     M5.Lcd.setTextColor(color, WHITE)
+    M5.Lcd.drawString(text, x, y)
 
 
 def _draw_battery(x, y, pct):
@@ -91,21 +92,18 @@ def _draw_battery(x, y, pct):
     fill_w = int((body_w - 4) * max(0, min(100, pct)) / 100)
     if fill_w > 0:
         M5.Lcd.fillRect(bx + 2, y + 2, fill_w, body_h - 4, BLACK)
-    _use(M5.Lcd.FONTS.Montserrat18, BLACK)
-    M5.Lcd.drawString("{}%".format(pct), bx - 60, y + 4)
+    _draw(M5.Lcd.FONTS.Montserrat18, "{}%".format(pct), bx - 60, y + 4)
 
 
 def render_day_heading(date_str, y):
-    _use(M5.Lcd.FONTS.Montserrat24, BLACK)
-    M5.Lcd.drawString(format_date_heading(date_str), MARGIN, y)
+    _draw(M5.Lcd.FONTS.Montserrat24, format_date_heading(date_str), MARGIN, y)
     return y + 40
 
 
 def render_event(event, y):
     time_label = "All day" if event.get("all_day") else format_time(event["start"])
-    _use(M5.Lcd.FONTS.Montserrat40, BLACK)
-    M5.Lcd.drawString(time_label, MARGIN, y)
-    M5.Lcd.drawString(truncate(event["title"], TITLE_MAX_CHARS), MARGIN + TIME_COL_W, y)
+    _draw(M5.Lcd.FONTS.Montserrat40, time_label, MARGIN, y)
+    _draw(M5.Lcd.FONTS.Montserrat40, truncate(event["title"], TITLE_MAX_CHARS), MARGIN + TIME_COL_W, y)
     return y + 60
 
 
@@ -117,11 +115,10 @@ def format_clock(t):
 def render_footer(last_updated, battery_pct, warning=None):
     y = HEIGHT - FOOTER_H
     M5.Lcd.drawLine(MARGIN, y, WIDTH - MARGIN, y, BLACK)
-    _use(M5.Lcd.FONTS.Montserrat24, BLACK)
     text = "Updated {}".format(last_updated)
     if warning:
         text += "  ! {}".format(warning)
-    M5.Lcd.drawString(text, MARGIN, y + 18)
+    _draw(M5.Lcd.FONTS.Montserrat24, text, MARGIN, y + 18)
     _draw_battery(WIDTH - MARGIN, y + 16, battery_pct)
 
 
@@ -142,8 +139,6 @@ def render_error(title, detail, battery_pct):
     """Full-screen error state (no WiFi / auth failure / unreachable API)."""
     M5.Lcd.setRotation(0)
     M5.Lcd.fillScreen(WHITE)
-    _use(M5.Lcd.FONTS.Montserrat48, BLACK)
-    M5.Lcd.drawString(title, MARGIN, 360)
-    _use(M5.Lcd.FONTS.Montserrat24, BLACK)
-    M5.Lcd.drawString(detail, MARGIN, 440)
+    _draw(M5.Lcd.FONTS.Montserrat48, title, MARGIN, 360)
+    _draw(M5.Lcd.FONTS.Montserrat24, detail, MARGIN, 440)
     render_footer("", battery_pct)

@@ -74,17 +74,45 @@ readable the whole time the device is asleep.
 
 ## Uploading to the device
 
-The device uses a flat filesystem, so all source files live in the device
-**root** (do not recreate the `src/` folder on the device). Using the
-[UIFlow 2.0](https://docs.m5stack.com/en/uiflow/uiflow2/intro) editor, upload:
+Using the [UIFlow 2.0](https://docs.m5stack.com/en/uiflow/uiflow2/intro)
+editor, upload the files to these locations on the device:
 
-- `main.py`
-- `display.py`
-- `calendar.py`
-- `device.py`
-- `config.py`
+| Host file | Device path |
+|---|---|
+| `src/main.py` | `/flash/main.py` |
+| `src/display.py` | `/flash/libs/display.py` |
+| `src/calendar.py` | `/flash/libs/calendar.py` |
+| `src/device.py` | `/flash/libs/device.py` |
+| `src/config.py` | `/flash/libs/config.py` |
 
-Then run `main.py`.
+`/flash/libs/` is on `sys.path` by default, so the modules import without
+any path prefix. `main.py` must live at the device **root** for the
+autoboot flow below to pick it up.
+
+## Autoboot
+
+So the device runs the calendar on power-on and after every deep-sleep
+wake, switch UIFlow's `boot.py` out of "show startup menu" mode and into
+"run `main.py` directly" mode. Do this **once** at the REPL:
+
+```python
+import esp32
+nvs = esp32.NVS("uiflow")
+nvs.set_u8("boot_option", 0)
+nvs.commit()
+```
+
+Then hard-reboot. You should see the `print(...)` output from `main.py`
+on the serial console, the display refresh, then deep sleep until the
+next wake.
+
+To get back to the UIFlow startup menu (e.g. to reconnect to the cloud
+editor), hold **BtnA** and press reset.
+
+**Heads-up:** hitting **DOWNLOAD** in the UIFlow cloud editor resets
+`boot_option` to `2` (network setup only, won't run `main.py`). Upload
+files via the UIFlow file manager instead, or re-run the NVS snippet
+above after a DOWNLOAD.
 
 ## Development
 
