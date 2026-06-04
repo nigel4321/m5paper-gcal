@@ -1,6 +1,5 @@
 import time
 
-import machine
 import network
 
 import M5
@@ -45,10 +44,15 @@ def battery_percent():
         return 0
 
 
-def minutes_to_ms(minutes):
-    return minutes * 60 * 1000
+def minutes_to_seconds(minutes):
+    return minutes * 60
 
 
 def deep_sleep(minutes):
-    """Enter deep sleep; the device reboots and re-runs main.py on wake."""
-    machine.deepsleep(minutes_to_ms(minutes))
+    """Enter deep sleep; the device reboots and re-runs main.py on wake.
+
+    Uses M5.Power.timerSleep, which routes the wake through the M5Paper's
+    BM8563 RTC and properly cycles the main power rail. machine.deepsleep
+    does not coordinate with the power IC and leaves the device asleep.
+    """
+    M5.Power.timerSleep(minutes_to_seconds(minutes))
