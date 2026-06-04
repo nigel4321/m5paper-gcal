@@ -37,6 +37,39 @@ def test_format_clock():
     assert display.format_clock((2026, 5, 30, 14, 30, 0, 0, 0)) == "14:30"
 
 
+def test_date_str_from_time():
+    assert display.date_str_from_time((2026, 6, 4, 18, 23, 0, 0, 0)) == "2026-06-04"
+
+
+def test_london_offset_winter_and_summer():
+    # Mid-January -> GMT
+    assert display._london_offset_hours((2026, 1, 15, 12, 0, 0, 0, 0)) == 0
+    # Mid-July -> BST
+    assert display._london_offset_hours((2026, 7, 15, 12, 0, 0, 0, 0)) == 1
+
+
+def test_london_offset_dst_transitions_2026():
+    # Last Sunday of March 2026 is the 29th; BST starts at 01:00 UTC.
+    assert display._london_offset_hours((2026, 3, 29, 0, 59, 0, 0, 0)) == 0  # just before
+    assert display._london_offset_hours((2026, 3, 29, 1, 0, 0, 0, 0)) == 1   # at switch
+    assert display._london_offset_hours((2026, 3, 30, 12, 0, 0, 0, 0)) == 1
+    # Last Sunday of October 2026 is the 25th; GMT resumes at 01:00 UTC.
+    assert display._london_offset_hours((2026, 10, 25, 0, 59, 0, 0, 0)) == 1
+    assert display._london_offset_hours((2026, 10, 25, 1, 0, 0, 0, 0)) == 0
+    assert display._london_offset_hours((2026, 10, 26, 12, 0, 0, 0, 0)) == 0
+
+
+def test_to_london_adds_bst_offset_and_rolls_day():
+    # Winter: no offset
+    assert display.to_london((2026, 1, 15, 12, 0, 0, 0, 0))[:6] == (2026, 1, 15, 12, 0, 0)
+    # Summer afternoon: +1h
+    assert display.to_london((2026, 7, 15, 12, 0, 0, 0, 0))[:6] == (2026, 7, 15, 13, 0, 0)
+    # Summer 23:30 UTC -> next day 00:30 BST
+    assert display.to_london((2026, 7, 15, 23, 30, 0, 0, 0))[:6] == (2026, 7, 16, 0, 30, 0)
+    # Month rollover: 31 July 23:30 UTC -> 1 Aug 00:30 BST
+    assert display.to_london((2026, 7, 31, 23, 30, 0, 0, 0))[:6] == (2026, 8, 1, 0, 30, 0)
+
+
 def test_render_all_runs_with_stubbed_device():
     # M5 is stubbed in conftest; this exercises the full render path for crashes.
     display.render_all(MOCK_EVENTS, 84, "09:15")

@@ -65,16 +65,22 @@ def _load_font(size):
     return ImageFont.load_default()
 
 
-def render(events, battery_pct, last_updated, warning=None):
+def render(events, battery_pct, last_updated, today=None, warning=None):
     img = Image.new("L", (D.WIDTH, D.HEIGHT), 255)
     draw = ImageDraw.Draw(img)
 
+    f_top = _load_font(40)
     f_day = _load_font(24)
     f_event = _load_font(40)
     f_footer = _load_font(24)
     f_battery = _load_font(18)
 
     y = D.MARGIN
+    if today:
+        draw.text((D.MARGIN, y), D.format_date_heading(today), fill=0, font=f_top)
+        line_y = y + 50
+        draw.line([(D.MARGIN, line_y), (D.WIDTH - D.MARGIN, line_y)], fill=0, width=1)
+        y = line_y + 18
     for date_str, day_events in D.group_events_by_day(events):
         draw.text((D.MARGIN, y), D.format_date_heading(date_str), fill=0, font=f_day)
         y += 40
@@ -131,9 +137,11 @@ def main():
     else:
         events = MOCK_EVENTS
 
-    updated = args.updated or "{:02d}:{:02d}".format(time.localtime().tm_hour, time.localtime().tm_min)
+    local_now = D.to_london(time.gmtime())
+    updated = args.updated or D.format_clock(local_now)
+    today = D.date_str_from_time(local_now)
 
-    img = render(events, args.battery, updated, warning=args.warning)
+    img = render(events, args.battery, updated, today=today, warning=args.warning)
     img.save(args.out)
     print("wrote", args.out)
 

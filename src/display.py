@@ -62,6 +62,61 @@ def truncate(text, max_chars):
     return text[:max_chars]
 
 
+_DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+
+
+def _days_in_month(y, m):
+    if m == 2 and ((y % 4 == 0 and y % 100 != 0) or y % 400 == 0):
+        return 29
+    return _DAYS_IN_MONTH[m - 1]
+
+
+def _last_sunday(y, m):
+    last = _days_in_month(y, m)
+    return last - day_of_week(y, m, last)  # day_of_week: 0=Sunday
+
+
+def _london_offset_hours(utc_t):
+    """0 = GMT, 1 = BST. UK rule: last Sun Mar 01:00 UTC -> BST; last Sun Oct 01:00 UTC -> GMT."""
+    y, m, d, h = utc_t[0], utc_t[1], utc_t[2], utc_t[3]
+    if m < 3 or m > 10:
+        return 0
+    if 3 < m < 10:
+        return 1
+    last_sun = _last_sunday(y, m)
+    if m == 3:
+        if d > last_sun or (d == last_sun and h >= 1):
+            return 1
+        return 0
+    if d < last_sun or (d == last_sun and h < 1):
+        return 1
+    return 0
+
+
+def to_london(utc_t):
+    """UTC time tuple -> London local time tuple. Auto-handles BST/GMT each year."""
+    offset = _london_offset_hours(utc_t)
+    if offset == 0:
+        return utc_t
+    y, mo, d, h, mi, s = utc_t[0], utc_t[1], utc_t[2], utc_t[3], utc_t[4], utc_t[5]
+    h += offset
+    if h >= 24:
+        h -= 24
+        d += 1
+        if d > _days_in_month(y, mo):
+            d = 1
+            mo += 1
+            if mo > 12:
+                mo = 1
+                y += 1
+    return (y, mo, d, h, mi, s, day_of_week(y, mo, d), 0)
+
+
+def date_str_from_time(t):
+    """Time tuple -> 'YYYY-MM-DD'."""
+    return "{:04d}-{:02d}-{:02d}".format(t[0], t[1], t[2])
+
+
 def group_events_by_day(events):
     """[(date_str, [event, ...]), ...] preserving input order."""
     groups = []
@@ -95,6 +150,13 @@ def _draw_battery(x, y, pct):
     _draw(M5.Lcd.FONTS.Montserrat18, "{}%".format(pct), bx - 60, y + 4)
 
 
+def render_top_heading(date_str, y):
+    _draw(M5.Lcd.FONTS.Montserrat40, format_date_heading(date_str), MARGIN, y)
+    line_y = y + 50
+    M5.Lcd.drawLine(MARGIN, line_y, WIDTH - MARGIN, line_y, BLACK)
+    return line_y + 18
+
+
 def render_day_heading(date_str, y):
     _draw(M5.Lcd.FONTS.Montserrat24, format_date_heading(date_str), MARGIN, y)
     return y + 40
@@ -122,11 +184,13 @@ def render_footer(last_updated, battery_pct, warning=None):
     _draw_battery(WIDTH - MARGIN, y + 16, battery_pct)
 
 
-def render_all(events, battery_pct, last_updated, warning=None):
-    """Full-screen refresh: day-grouped events, footer with battery."""
+def render_all(events, battery_pct, last_updated, today=None, warning=None):
+    """Full-screen refresh: today heading, day-grouped events, footer with battery."""
     M5.Lcd.setRotation(0)
     M5.Lcd.fillScreen(WHITE)
     y = MARGIN
+    if today:
+        y = render_top_heading(today, y)
     for date_str, day_events in group_events_by_day(events):
         y = render_day_heading(date_str, y)
         for event in day_events:

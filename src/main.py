@@ -36,16 +36,18 @@ def run_cycle():
         device.disconnect_wifi()
 
     battery = device.battery_percent()
-    updated = display.format_clock(time.gmtime())
+    local_now = display.to_london(time.gmtime())
+    updated = display.format_clock(local_now)
+    today = display.date_str_from_time(local_now)
 
     if events is not None:
-        display.render_all(events, battery, updated)
+        display.render_all(events, battery, updated, today=today)
     elif error:
         display.render_error(error[0], error[1], battery)
     else:
         cached = calendar.load_events()
         if cached:
-            display.render_all(cached, battery, updated, warning="update failed")
+            display.render_all(cached, battery, updated, today=today, warning="update failed")
         else:
             display.render_error("Update failed", "Could not reach Google Calendar", battery)
 
