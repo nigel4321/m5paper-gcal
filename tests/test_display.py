@@ -20,7 +20,7 @@ def test_format_time():
 
 def test_truncate():
     assert display.truncate("short", 10) == "short"
-    assert display.truncate("a much longer string", 10) == "a much lo…"
+    assert display.truncate("a much longer string", 10) == "a much lon"
     assert len(display.truncate("a much longer string", 10)) == 10
 
 

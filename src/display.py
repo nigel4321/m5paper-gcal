@@ -59,7 +59,7 @@ def format_time(start):
 def truncate(text, max_chars):
     if len(text) <= max_chars:
         return text
-    return text[: max_chars - 1] + "…"
+    return text[:max_chars]
 
 
 def group_events_by_day(events):
