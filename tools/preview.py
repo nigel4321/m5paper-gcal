@@ -27,7 +27,40 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 sys.modules["M5"] = MagicMock()
 from src import calendar as C  # noqa: E402
 from src import display as D  # noqa: E402
+from src import weather as W  # noqa: E402
 from src.mock_data import MOCK_EVENTS  # noqa: E402
+
+ICON_DIR = os.path.join(os.path.dirname(__file__), "..", ".icon_cache")
+
+# Friendly aliases -> OWM icon codes, for the --weather flag
+_FRIENDLY_ICON = {
+    "sun": "01d", "sun_cloud": "02d", "cloud": "04d",
+    "fog": "50d", "rain": "10d", "heavy_rain": "09d",
+    "snow": "13d", "thunder": "11d",
+}
+
+
+def _fetch_live_weather():
+    """Pull current weather from Open-Meteo using src/config.py lat/lng."""
+    try:
+        from src import config
+    except ImportError:
+        return None
+    try:
+        return W.get_current(config.WEATHER_LAT, config.WEATHER_LNG)
+    except Exception as e:
+        print("weather fetch failed:", e)
+        return None
+
+
+def _ensure_icon_local(code):
+    """Mirror of weather.ensure_icon but using the host-side cache dir."""
+    os.makedirs(ICON_DIR, exist_ok=True)
+    try:
+        return W.ensure_icon(code, cache_dir=ICON_DIR)
+    except Exception as e:
+        print("icon fetch failed:", e)
+        return None
 
 
 def _fetch_live_events(max_results):
@@ -65,11 +98,12 @@ def _load_font(size):
     return ImageFont.load_default()
 
 
-def render(events, battery_pct, last_updated, today=None, warning=None):
+def render(events, battery_pct, last_updated, today=None, weather_icon=None, warning=None):
     img = Image.new("L", (D.WIDTH, D.HEIGHT), 255)
     draw = ImageDraw.Draw(img)
 
     f_top = _load_font(40)
+    f_top_sub = _load_font(24)
     f_day = _load_font(24)
     f_event = _load_font(40)
     f_footer = _load_font(24)
@@ -77,8 +111,16 @@ def render(events, battery_pct, last_updated, today=None, warning=None):
 
     y = D.MARGIN
     if today:
-        draw.text((D.MARGIN, y), D.format_date_heading(today), fill=0, font=f_top)
-        line_y = y + 50
+        draw.text((D.MARGIN, y), D.format_weekday(today), fill=0, font=f_top)
+        draw.text((D.MARGIN, y + 50), D.format_day_month(today), fill=0, font=f_top_sub)
+        if weather_icon:
+            icon_path = os.path.join(ICON_DIR, weather_icon + ".png")
+            if os.path.exists(icon_path):
+                icon_img = Image.open(icon_path).convert("LA")
+                # Paste using alpha channel so transparent background stays white
+                img.paste(icon_img.convert("L"), (D.WIDTH - D.MARGIN - D.ICON_SIZE, y),
+                          icon_img.getchannel("A"))
+        line_y = y + 108
         draw.line([(D.MARGIN, line_y), (D.WIDTH - D.MARGIN, line_y)], fill=0, width=1)
         y = line_y + 18
     for date_str, day_events in D.group_events_by_day(events):
@@ -122,6 +164,12 @@ def main():
     ap.add_argument("--live", action="store_true", help="Fetch real events from Google Calendar")
     ap.add_argument("--events", help="Path to a JSON file of events (defaults to MOCK_EVENTS)")
     ap.add_argument("--max", type=int, default=None, help="Max events when using --live")
+    ap.add_argument(
+        "--weather",
+        default=None,
+        help="Force a weather icon. Friendly name (sun, sun_cloud, cloud, fog, rain, "
+        "heavy_rain, snow, thunder) or raw OWM code (e.g. '10d', '01n').",
+    )
     ap.add_argument("--battery", type=int, default=84)
     ap.add_argument("--updated", default=None, help="HH:MM (defaults to now)")
     ap.add_argument("--warning", default=None)
@@ -141,7 +189,18 @@ def main():
     updated = args.updated or D.format_clock(local_now)
     today = D.date_str_from_time(local_now)
 
-    img = render(events, args.battery, updated, today=today, warning=args.warning)
+    icon = None
+    if args.live:
+        wx = _fetch_live_weather()
+        if wx:
+            icon = W.code_to_icon(wx["weathercode"], wx.get("is_day", 1))
+    elif args.weather:
+        icon = _FRIENDLY_ICON.get(args.weather, args.weather)
+
+    if icon:
+        _ensure_icon_local(icon)
+
+    img = render(events, args.battery, updated, today=today, weather_icon=icon, warning=args.warning)
     img.save(args.out)
     print("wrote", args.out)
 

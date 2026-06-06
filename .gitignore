@@ -7,3 +7,5 @@ __pycache__/
 # Local secrets — copy config.example.py to config.py
 src/config.py
 preview.png
+.icon_cache/
+src/icons/

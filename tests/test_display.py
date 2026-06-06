@@ -14,6 +14,13 @@ def test_format_date_heading():
     assert display.format_date_heading("2026-06-01") == "Monday 1 June"
 
 
+def test_format_weekday_and_day_month():
+    assert display.format_weekday("2026-05-30") == "Saturday"
+    assert display.format_day_month("2026-05-30") == "30 May"
+    assert display.format_weekday("2026-06-01") == "Monday"
+    assert display.format_day_month("2026-06-01") == "1 June"
+
+
 def test_format_time():
     assert display.format_time("2026-05-30T09:00:00") == "09:00"
 

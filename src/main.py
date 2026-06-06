@@ -6,11 +6,13 @@ import calendar
 import config
 import device
 import display
+import weather
 
 
 def run_cycle():
     """One wake cycle: connect, fetch, render, disconnect."""
     events = None
+    wx = None
     error = None
 
     if not device.connect_wifi(config.WIFI_SSID, config.WIFI_PASSWORD):
@@ -33,7 +35,22 @@ def run_cycle():
                 calendar.save_events(events)
             except Exception as e:
                 print("fetch failed:", e)  # fall through to stale cache below
+        try:
+            wx = weather.get_current(config.WEATHER_LAT, config.WEATHER_LNG)
+            weather.save_weather(wx)
+        except Exception as e:
+            print("weather fetch failed:", e)
+            wx = weather.load_weather()
+        if wx:
+            try:
+                weather.ensure_icon(weather.code_to_icon(wx["weathercode"], wx.get("is_day", 1)))
+            except Exception as e:
+                print("icon fetch failed:", e)
         device.disconnect_wifi()
+
+    if wx is None:
+        wx = weather.load_weather()
+    icon = weather.code_to_icon(wx["weathercode"], wx.get("is_day", 1)) if wx else None
 
     battery = device.battery_percent()
     local_now = display.to_london(time.gmtime())
@@ -41,13 +58,15 @@ def run_cycle():
     today = display.date_str_from_time(local_now)
 
     if events is not None:
-        display.render_all(events, battery, updated, today=today)
+        display.render_all(events, battery, updated, today=today, weather_icon=icon)
     elif error:
         display.render_error(error[0], error[1], battery)
     else:
         cached = calendar.load_events()
         if cached:
-            display.render_all(cached, battery, updated, today=today, warning="update failed")
+            display.render_all(
+                cached, battery, updated, today=today, weather_icon=icon, warning="update failed"
+            )
         else:
             display.render_error("Update failed", "Could not reach Google Calendar", battery)
 

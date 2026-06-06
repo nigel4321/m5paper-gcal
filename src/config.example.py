@@ -13,3 +13,7 @@ REFRESH_TOKEN = ""
 # App settings
 SLEEP_INTERVAL_MIN = 30
 MAX_EVENTS = 5
+
+# Weather location (Open-Meteo, no API key required)
+WEATHER_LAT = 51.5074
+WEATHER_LNG = -0.1278

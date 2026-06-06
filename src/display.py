@@ -14,6 +14,8 @@ MARGIN = 24
 FOOTER_H = 60
 TIME_COL_W = 140
 TITLE_MAX_CHARS = 16
+ICON_SIZE = 100
+ICON_DIR = "/flash/icons"
 
 _WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 _MONTHS = [
@@ -49,6 +51,18 @@ def format_date_heading(date_str):
     """'2026-05-30' -> 'Saturday 30 May'."""
     y, m, d = int(date_str[:4]), int(date_str[5:7]), int(date_str[8:10])
     return "{} {} {}".format(_WEEKDAYS[day_of_week(y, m, d)], d, _MONTHS[m - 1])
+
+
+def format_weekday(date_str):
+    """'2026-05-30' -> 'Saturday'."""
+    y, m, d = int(date_str[:4]), int(date_str[5:7]), int(date_str[8:10])
+    return _WEEKDAYS[day_of_week(y, m, d)]
+
+
+def format_day_month(date_str):
+    """'2026-05-30' -> '30 May'."""
+    m, d = int(date_str[5:7]), int(date_str[8:10])
+    return "{} {}".format(d, _MONTHS[m - 1])
 
 
 def format_time(start):
@@ -150,9 +164,20 @@ def _draw_battery(x, y, pct):
     _draw(M5.Lcd.FONTS.Montserrat18, "{}%".format(pct), bx - 60, y + 4)
 
 
-def render_top_heading(date_str, y):
-    _draw(M5.Lcd.FONTS.Montserrat40, format_date_heading(date_str), MARGIN, y)
-    line_y = y + 50
+def render_top_heading(date_str, y, weather_icon=None):
+    """Two-line date on the left ('Saturday' / '6 June'), optional icon on the right."""
+    _draw(M5.Lcd.FONTS.Montserrat40, format_weekday(date_str), MARGIN, y)
+    _draw(M5.Lcd.FONTS.Montserrat24, format_day_month(date_str), MARGIN, y + 50)
+    if weather_icon:
+        try:
+            M5.Lcd.drawPng(
+                "{}/{}.png".format(ICON_DIR, weather_icon),
+                WIDTH - MARGIN - ICON_SIZE,
+                y,
+            )
+        except Exception as e:
+            print("icon render failed:", e)
+    line_y = y + 108
     M5.Lcd.drawLine(MARGIN, line_y, WIDTH - MARGIN, line_y, BLACK)
     return line_y + 18
 
@@ -184,13 +209,13 @@ def render_footer(last_updated, battery_pct, warning=None):
     _draw_battery(WIDTH - MARGIN, y + 16, battery_pct)
 
 
-def render_all(events, battery_pct, last_updated, today=None, warning=None):
-    """Full-screen refresh: today heading, day-grouped events, footer with battery."""
+def render_all(events, battery_pct, last_updated, today=None, weather_icon=None, warning=None):
+    """Full-screen refresh: today heading + weather icon, day-grouped events, footer."""
     M5.Lcd.setRotation(0)
     M5.Lcd.fillScreen(WHITE)
     y = MARGIN
     if today:
-        y = render_top_heading(today, y)
+        y = render_top_heading(today, y, weather_icon=weather_icon)
     for date_str, day_events in group_events_by_day(events):
         y = render_day_heading(date_str, y)
         for event in day_events:

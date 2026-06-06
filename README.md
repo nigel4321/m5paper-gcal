@@ -1,16 +1,21 @@
 # m5paper-gcal
 
-Display the next 5 events from a Google Calendar on an
+Display your upcoming Google Calendar events plus current weather on an
 [M5Paper](https://docs.m5stack.com/en/core/m5paper) e-ink device.
 
-The device wakes on a timer, connects to WiFi, fetches your upcoming events
-directly from the Google Calendar API (OAuth on-device, no backend), renders
-them to the e-ink screen, then deep sleeps to conserve battery.
+The device wakes on a timer, connects to WiFi, fetches upcoming events
+directly from the Google Calendar API (OAuth on-device, no backend) and the
+current weather from Open-Meteo (no API key), renders to the e-ink screen,
+then deep sleeps to conserve battery.
+
+The display shows today's date with a weather icon at the top, then events
+grouped by day, with the last-updated time and battery in the footer. Times
+are shown in London time (BST/GMT) and switch automatically each year.
 
 ## How it works
 
 ```
-Boot → Connect WiFi → Sync time (NTP) → Refresh token → Fetch events
+Boot → Connect WiFi → NTP → Refresh OAuth → Fetch events → Fetch weather
      → Render display → Disconnect WiFi → Deep sleep N minutes → (repeat)
 ```
 
@@ -22,12 +27,14 @@ readable the whole time the device is asleep.
 | File | Role |
 |---|---|
 | `src/main.py` | Entry point — runs one wake cycle then deep sleeps |
-| `src/display.py` | Layout and rendering (header, events, footer, error states) |
-| `src/calendar.py` | Google Calendar OAuth, event fetch, and on-flash cache |
-| `src/device.py` | WiFi, NTP time sync, battery read, deep sleep |
-| `src/config.example.py` | Template for `config.py` (WiFi/OAuth credentials, settings) |
+| `src/display.py` | Layout/rendering, BST/GMT conversion, date helpers |
+| `src/calendar.py` | Google Calendar OAuth, event fetch, on-flash event cache |
+| `src/weather.py` | Open-Meteo client, WMO→OWM icon mapping, icon download + cache |
+| `src/device.py` | WiFi, NTP time sync, battery read, deep sleep (via `M5.Power.timerSleep`) |
+| `src/config.example.py` | Template for `config.py` (WiFi/OAuth/weather settings) |
 | `src/mock_data.py` | Sample events used for tests / offline display checks |
 | `tools/get_token.py` | One-time desktop helper to obtain a refresh token |
+| `tools/preview.py` | Render the layout to a PNG on the host (mock or live data) |
 
 ## Getting your Google Calendar credentials
 
@@ -68,9 +75,15 @@ readable the whole time the device is asleep.
     ```
     cp src/config.example.py src/config.py
     ```
-    Edit `src/config.py` and set `CLIENT_ID`, `CLIENT_SECRET`, `REFRESH_TOKEN`,
-    plus `WIFI_SSID` / `WIFI_PASSWORD`. `config.py` is gitignored, so your
-    secrets are never committed.
+    Edit `src/config.py` and set:
+    - `WIFI_SSID` / `WIFI_PASSWORD`
+    - `CLIENT_ID`, `CLIENT_SECRET`, `REFRESH_TOKEN`
+    - `WEATHER_LAT` / `WEATHER_LNG` — the location used for the weather icon
+      (defaults to London). Open-Meteo is keyless.
+    - `SLEEP_INTERVAL_MIN` — how often the device wakes (in minutes)
+    - `MAX_EVENTS` — how many upcoming events to show
+
+    `config.py` is gitignored, so your secrets are never committed.
 
 ## Uploading to the device
 
@@ -82,12 +95,18 @@ editor, upload the files to these locations on the device:
 | `src/main.py` | `/flash/main.py` |
 | `src/display.py` | `/flash/libs/display.py` |
 | `src/calendar.py` | `/flash/libs/calendar.py` |
+| `src/weather.py` | `/flash/libs/weather.py` |
 | `src/device.py` | `/flash/libs/device.py` |
 | `src/config.py` | `/flash/libs/config.py` |
 
 `/flash/libs/` is on `sys.path` by default, so the modules import without
 any path prefix. `main.py` must live at the device **root** for the
 autoboot flow below to pick it up.
+
+Weather icons are downloaded on demand from `openweathermap.org/img/wn/`
+and cached at `/flash/icons/` — no manual upload needed. The first wake
+needs network for both the calendar fetch and the initial icon download;
+after that, only icons for new weather conditions are fetched.
 
 ## Autoboot
 
@@ -114,6 +133,29 @@ editor), hold **BtnA** and press reset.
 files via the UIFlow file manager instead, or re-run the NVS snippet
 above after a DOWNLOAD.
 
+## Previewing the display on your laptop
+
+`tools/preview.py` renders the same layout to a PNG (540×960, portrait —
+identical to the device's e-ink panel) so you can iterate on the design
+without touching hardware.
+
+```
+.venv/bin/python tools/preview.py                # MOCK_EVENTS + no icon
+.venv/bin/python tools/preview.py --open         # also open the PNG
+.venv/bin/python tools/preview.py --live         # real events + real weather
+.venv/bin/python tools/preview.py --weather rain # force a specific icon
+.venv/bin/python tools/preview.py --events events.json  # events from a JSON file
+```
+
+`--live` reuses `src/config.py` to refresh the OAuth token, pulls your
+upcoming events from Google Calendar, and fetches the current weather from
+Open-Meteo for `WEATHER_LAT` / `WEATHER_LNG`. Icons are downloaded to a
+local `.icon_cache/` (gitignored) on first use.
+
+Fonts fall back through Montserrat → Helvetica → Arial → DejaVu, so the
+preview is visually close to but not pixel-identical to the device's
+Montserrat rendering.
+
 ## Development
 
 Tests run on host Python with the device modules stubbed — no hardware needed.
@@ -126,3 +168,6 @@ python3 -m venv .venv
 ```
 
 CI runs the same lint and tests on every push and pull request.
+
+See [`KNOWN_ISSUES.md`](KNOWN_ISSUES.md) for the open display-rendering
+quirk and the hypotheses we've already ruled out.
