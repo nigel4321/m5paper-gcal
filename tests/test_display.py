@@ -39,10 +39,10 @@ def test_group_events_by_day_preserves_order_and_splits_days():
     assert len(groups[2][1]) == 1
 
 
-def test_format_temperature():
-    assert display.format_temperature(18.4) == "18°C"
-    assert display.format_temperature(0.0) == "0°C"
-    assert display.format_temperature(-3.7) == "-4°C"
+def test_format_temp():
+    assert display.format_temp(18.4) == "18°"
+    assert display.format_temp(0.0) == "0°"
+    assert display.format_temp(-3.7) == "-4°"
 
 
 def test_format_clock():
@@ -84,12 +84,12 @@ def test_to_london_adds_bst_offset_and_rolls_day():
 
 
 def test_render_all_runs_with_stubbed_device():
-    # M5 is stubbed in conftest; this exercises the full render path for crashes.
     display.render_all(MOCK_EVENTS, 84, "09:15")
 
 
-def test_render_all_with_warning_runs():
-    display.render_all(MOCK_EVENTS, 84, "09:15", warning="update failed")
+def test_render_all_with_temps_and_warning_runs():
+    display.render_all(MOCK_EVENTS, 84, "09:15", today="2026-06-07",
+                       temp_high=19.0, temp_low=11.0, warning="update failed")
 
 
 def test_render_error_runs():

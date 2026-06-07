@@ -14,8 +14,6 @@ MARGIN = 24
 FOOTER_H = 60
 TIME_COL_W = 140
 TITLE_MAX_CHARS = 16
-ICON_SIZE = 100
-ICON_DIR = "/flash/icons"
 
 _WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 _MONTHS = [
@@ -25,14 +23,6 @@ _MONTHS = [
 
 
 # --- Pure helpers (no device dependency; unit tested on host) ---
-
-def _date_ordinal(y, m, d):
-    """Julian Day Number — used only for date/time differences."""
-    a = (14 - m) // 12
-    yy = y + 4800 - a
-    mm = m + 12 * a - 3
-    return d + (153 * mm + 2) // 5 + 365 * yy + yy // 4 - yy // 100 + yy // 400 - 32045
-
 
 def day_of_week(y, m, d):
     """0=Sunday .. 6=Saturday (Sakamoto's algorithm)."""
@@ -68,6 +58,11 @@ def format_day_month(date_str):
 def format_time(start):
     """'2026-05-30T09:00:00' -> '09:00'."""
     return start[11:16]
+
+
+def format_temp(value):
+    """Numeric temperature -> '18°'."""
+    return "{:.0f}\xb0".format(value)
 
 
 def truncate(text, max_chars):
@@ -164,24 +159,15 @@ def _draw_battery(x, y, pct):
     _draw(M5.Lcd.FONTS.Montserrat18, "{}%".format(pct), bx - 60, y + 4)
 
 
-def format_temperature(temp):
-    """Numeric temperature -> '18°C'."""
-    return "{:.0f}\xb0C".format(temp)
-
-
-def render_top_heading(date_str, y, weather_icon=None, temperature=None):
-    """Two-line date on the left ('Saturday' / '6 June'), icon + temp on the right."""
+def render_top_heading(date_str, y, temp_high=None, temp_low=None):
+    """Two-line date on the left, H/L temperatures stacked on the right."""
     _draw(M5.Lcd.FONTS.Montserrat40, format_weekday(date_str), MARGIN, y)
     _draw(M5.Lcd.FONTS.Montserrat24, format_day_month(date_str), MARGIN, y + 50)
-    icon_x = WIDTH - MARGIN - ICON_SIZE
-    if weather_icon:
-        try:
-            M5.Lcd.drawPng("{}/{}.png".format(ICON_DIR, weather_icon), icon_x, y)
-        except Exception as e:
-            print("icon render failed:", e)
-    if temperature is not None:
-        _draw(M5.Lcd.FONTS.Montserrat24, format_temperature(temperature), icon_x - 80, y + 38)
-    line_y = y + 108
+    if temp_high is not None:
+        _draw(M5.Lcd.FONTS.Montserrat24, "H " + format_temp(temp_high), WIDTH - MARGIN - 100, y + 18)
+    if temp_low is not None:
+        _draw(M5.Lcd.FONTS.Montserrat24, "L " + format_temp(temp_low), WIDTH - MARGIN - 100, y + 52)
+    line_y = y + 96
     M5.Lcd.drawLine(MARGIN, line_y, WIDTH - MARGIN, line_y, BLACK)
     return line_y + 18
 
@@ -213,13 +199,13 @@ def render_footer(last_updated, battery_pct, warning=None):
     _draw_battery(WIDTH - MARGIN, y + 16, battery_pct)
 
 
-def render_all(events, battery_pct, last_updated, today=None, weather_icon=None, temperature=None, warning=None):
-    """Full-screen refresh: today heading + weather icon, day-grouped events, footer."""
+def render_all(events, battery_pct, last_updated, today=None, temp_high=None, temp_low=None, warning=None):
+    """Full-screen refresh: today heading with H/L temps, day-grouped events, footer."""
     M5.Lcd.clear(WHITE)
     M5.Lcd.setRotation(0)
     y = MARGIN
     if today:
-        y = render_top_heading(today, y, weather_icon=weather_icon, temperature=temperature)
+        y = render_top_heading(today, y, temp_high=temp_high, temp_low=temp_low)
     for date_str, day_events in group_events_by_day(events):
         y = render_day_heading(date_str, y)
         for event in day_events:
