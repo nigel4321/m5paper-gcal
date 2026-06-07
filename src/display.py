@@ -164,19 +164,23 @@ def _draw_battery(x, y, pct):
     _draw(M5.Lcd.FONTS.Montserrat18, "{}%".format(pct), bx - 60, y + 4)
 
 
-def render_top_heading(date_str, y, weather_icon=None):
-    """Two-line date on the left ('Saturday' / '6 June'), optional icon on the right."""
+def format_temperature(temp):
+    """Numeric temperature -> '18°C'."""
+    return "{:.0f}\xb0C".format(temp)
+
+
+def render_top_heading(date_str, y, weather_icon=None, temperature=None):
+    """Two-line date on the left ('Saturday' / '6 June'), icon + temp on the right."""
     _draw(M5.Lcd.FONTS.Montserrat40, format_weekday(date_str), MARGIN, y)
     _draw(M5.Lcd.FONTS.Montserrat24, format_day_month(date_str), MARGIN, y + 50)
+    icon_x = WIDTH - MARGIN - ICON_SIZE
     if weather_icon:
         try:
-            M5.Lcd.drawPng(
-                "{}/{}.png".format(ICON_DIR, weather_icon),
-                WIDTH - MARGIN - ICON_SIZE,
-                y,
-            )
+            M5.Lcd.drawPng("{}/{}.png".format(ICON_DIR, weather_icon), icon_x, y)
         except Exception as e:
             print("icon render failed:", e)
+    if temperature is not None:
+        _draw(M5.Lcd.FONTS.Montserrat24, format_temperature(temperature), icon_x - 80, y + 38)
     line_y = y + 108
     M5.Lcd.drawLine(MARGIN, line_y, WIDTH - MARGIN, line_y, BLACK)
     return line_y + 18
@@ -209,13 +213,13 @@ def render_footer(last_updated, battery_pct, warning=None):
     _draw_battery(WIDTH - MARGIN, y + 16, battery_pct)
 
 
-def render_all(events, battery_pct, last_updated, today=None, weather_icon=None, warning=None):
+def render_all(events, battery_pct, last_updated, today=None, weather_icon=None, temperature=None, warning=None):
     """Full-screen refresh: today heading + weather icon, day-grouped events, footer."""
+    M5.Lcd.clear(WHITE)
     M5.Lcd.setRotation(0)
-    M5.Lcd.fillScreen(WHITE)
     y = MARGIN
     if today:
-        y = render_top_heading(today, y, weather_icon=weather_icon)
+        y = render_top_heading(today, y, weather_icon=weather_icon, temperature=temperature)
     for date_str, day_events in group_events_by_day(events):
         y = render_day_heading(date_str, y)
         for event in day_events:
@@ -226,8 +230,8 @@ def render_all(events, battery_pct, last_updated, today=None, weather_icon=None,
 
 def render_error(title, detail, battery_pct):
     """Full-screen error state (no WiFi / auth failure / unreachable API)."""
+    M5.Lcd.clear(WHITE)
     M5.Lcd.setRotation(0)
-    M5.Lcd.fillScreen(WHITE)
     _draw(M5.Lcd.FONTS.Montserrat48, title, MARGIN, 360)
     _draw(M5.Lcd.FONTS.Montserrat24, detail, MARGIN, 440)
     render_footer("", battery_pct)

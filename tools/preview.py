@@ -30,7 +30,7 @@ from src import display as D  # noqa: E402
 from src import weather as W  # noqa: E402
 from src.mock_data import MOCK_EVENTS  # noqa: E402
 
-ICON_DIR = os.path.join(os.path.dirname(__file__), "..", ".icon_cache")
+ICON_DIR = os.path.join(os.path.dirname(__file__), "..", "src", "icons")
 
 # Friendly aliases -> OWM icon codes, for the --weather flag
 _FRIENDLY_ICON = {
@@ -54,10 +54,24 @@ def _fetch_live_weather():
 
 
 def _ensure_icon_local(code):
-    """Mirror of weather.ensure_icon but using the host-side cache dir."""
+    """Return path to a processed icon, downloading + converting if not in src/icons/."""
     os.makedirs(ICON_DIR, exist_ok=True)
+    path = os.path.join(ICON_DIR, code + ".png")
+    if os.path.exists(path):
+        return path
     try:
-        return W.ensure_icon(code, cache_dir=ICON_DIR)
+        import requests as _req
+        from io import BytesIO
+        resp = _req.get(W.ICON_URL.format(code), timeout=10)
+        if resp.status_code != 200:
+            raise RuntimeError("HTTP {}".format(resp.status_code))
+        img = Image.open(BytesIO(resp.content)).convert("RGBA")
+        r, g, b, a = img.split()
+        bw = img.convert("L").point(lambda v: 0 if v < 180 else 255, "L")
+        result = Image.new("L", img.size, 255)
+        result.paste(bw, mask=a)
+        result.save(path)
+        return path
     except Exception as e:
         print("icon fetch failed:", e)
         return None
@@ -98,7 +112,7 @@ def _load_font(size):
     return ImageFont.load_default()
 
 
-def render(events, battery_pct, last_updated, today=None, weather_icon=None, warning=None):
+def render(events, battery_pct, last_updated, today=None, weather_icon=None, temperature=None, warning=None):
     img = Image.new("L", (D.WIDTH, D.HEIGHT), 255)
     draw = ImageDraw.Draw(img)
 
@@ -113,13 +127,15 @@ def render(events, battery_pct, last_updated, today=None, weather_icon=None, war
     if today:
         draw.text((D.MARGIN, y), D.format_weekday(today), fill=0, font=f_top)
         draw.text((D.MARGIN, y + 50), D.format_day_month(today), fill=0, font=f_top_sub)
+        icon_x = D.WIDTH - D.MARGIN - D.ICON_SIZE
         if weather_icon:
             icon_path = os.path.join(ICON_DIR, weather_icon + ".png")
             if os.path.exists(icon_path):
-                icon_img = Image.open(icon_path).convert("LA")
-                # Paste using alpha channel so transparent background stays white
-                img.paste(icon_img.convert("L"), (D.WIDTH - D.MARGIN - D.ICON_SIZE, y),
-                          icon_img.getchannel("A"))
+                icon_img = Image.open(icon_path).convert("L")
+                img.paste(icon_img, (icon_x, y))
+        if temperature is not None:
+            temp_str = D.format_temperature(temperature)
+            draw.text((icon_x - 80, y + 38), temp_str, fill=0, font=f_top_sub)
         line_y = y + 108
         draw.line([(D.MARGIN, line_y), (D.WIDTH - D.MARGIN, line_y)], fill=0, width=1)
         y = line_y + 18
@@ -200,7 +216,11 @@ def main():
     if icon:
         _ensure_icon_local(icon)
 
-    img = render(events, args.battery, updated, today=today, weather_icon=icon, warning=args.warning)
+    temperature = None
+    if args.live and wx:
+        temperature = wx.get("temperature")
+
+    img = render(events, args.battery, updated, today=today, weather_icon=icon, temperature=temperature, warning=args.warning)
     img.save(args.out)
     print("wrote", args.out)
 

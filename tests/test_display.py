@@ -39,6 +39,12 @@ def test_group_events_by_day_preserves_order_and_splits_days():
     assert len(groups[2][1]) == 1
 
 
+def test_format_temperature():
+    assert display.format_temperature(18.4) == "18°C"
+    assert display.format_temperature(0.0) == "0°C"
+    assert display.format_temperature(-3.7) == "-4°C"
+
+
 def test_format_clock():
     assert display.format_clock((2026, 5, 30, 9, 5, 0, 0, 0)) == "09:05"
     assert display.format_clock((2026, 5, 30, 14, 30, 0, 0, 0)) == "14:30"

@@ -19,7 +19,7 @@ ICON_DIR = "/flash/icons"
 #                 09=shower rain, 10=rain, 11=thunder, 13=snow, 50=mist
 _WMO_TO_OWM = {
     0: "01",
-    1: "02", 2: "03",
+    1: "02", 2: "02",
     3: "04",
     45: "50", 48: "50",
     51: "09", 53: "09", 55: "09",
@@ -46,7 +46,11 @@ def get_current(lat, lng):
         if resp.status_code != 200:
             raise RuntimeError("weather fetch failed: HTTP {}".format(resp.status_code))
         cw = resp.json()["current_weather"]
-        return {"weathercode": cw["weathercode"], "is_day": cw.get("is_day", 1)}
+        return {
+            "weathercode": cw["weathercode"],
+            "is_day": cw.get("is_day", 1),
+            "temperature": cw.get("temperature"),
+        }
     finally:
         resp.close()
 

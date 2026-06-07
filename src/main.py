@@ -51,6 +51,7 @@ def run_cycle():
     if wx is None:
         wx = weather.load_weather()
     icon = weather.code_to_icon(wx["weathercode"], wx.get("is_day", 1)) if wx else None
+    temperature = wx.get("temperature") if wx else None
 
     battery = device.battery_percent()
     local_now = display.to_london(time.gmtime())
@@ -58,14 +59,14 @@ def run_cycle():
     today = display.date_str_from_time(local_now)
 
     if events is not None:
-        display.render_all(events, battery, updated, today=today, weather_icon=icon)
+        display.render_all(events, battery, updated, today=today, weather_icon=icon, temperature=temperature)
     elif error:
         display.render_error(error[0], error[1], battery)
     else:
         cached = calendar.load_events()
         if cached:
             display.render_all(
-                cached, battery, updated, today=today, weather_icon=icon, warning="update failed"
+                cached, battery, updated, today=today, weather_icon=icon, temperature=temperature, warning="update failed"
             )
         else:
             display.render_error("Update failed", "Could not reach Google Calendar", battery)

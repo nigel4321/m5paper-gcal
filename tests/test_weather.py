@@ -37,13 +37,14 @@ def test_get_current_success():
         200, {"current_weather": {"weathercode": 3, "temperature": 14.2, "is_day": 1}}
     )
     wx = weather.get_current(51.5, -0.1)
-    assert wx == {"weathercode": 3, "is_day": 1}
+    assert wx == {"weathercode": 3, "is_day": 1, "temperature": 14.2}
     requests.get.return_value.close.assert_called_once()
 
 
 def test_get_current_defaults_is_day_when_missing():
     requests.get.return_value = _stub_response(200, {"current_weather": {"weathercode": 3}})
-    assert weather.get_current(51.5, -0.1) == {"weathercode": 3, "is_day": 1}
+    wx = weather.get_current(51.5, -0.1)
+    assert wx == {"weathercode": 3, "is_day": 1, "temperature": None}
 
 
 def test_get_current_http_error_raises():
