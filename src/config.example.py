@@ -11,7 +11,8 @@ CLIENT_SECRET = ""
 REFRESH_TOKEN = ""
 
 # App settings
-SLEEP_INTERVAL_MIN = 30
+SLEEP_INTERVAL_MIN = 30         # minutes between refreshes when online
+SLEEP_INTERVAL_WIFI_FAIL_MIN = 60  # shorter retry interval when WiFi fails
 MAX_EVENTS = 5
 
 # Weather location (Open-Meteo, no API key required)

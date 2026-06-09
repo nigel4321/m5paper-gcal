@@ -10,14 +10,16 @@ import weather
 
 
 def run_cycle():
-    """One wake cycle: connect, fetch, render, disconnect."""
+    """One wake cycle: connect, fetch, render, disconnect. Returns True if WiFi connected."""
     events = None
     wx = None
     error = None
+    wifi_ok = False
 
     if not device.connect_wifi(config.WIFI_SSID, config.WIFI_PASSWORD):
         error = ("No WiFi", "Could not connect to {}".format(config.WIFI_SSID))
     else:
+        wifi_ok = True
         try:
             device.sync_time()
         except Exception as e:
@@ -67,11 +69,14 @@ def run_cycle():
         else:
             display.render_error("Update failed", "Could not reach Google Calendar", battery)
 
+    return wifi_ok
+
 
 def main():
     M5.begin()
+    wifi_ok = False
     try:
-        run_cycle()
+        wifi_ok = run_cycle()
     except Exception as e:
         try:
             from utility import print_error_msg
@@ -79,8 +84,10 @@ def main():
         except ImportError:
             print(e)
     finally:
-        # Always sleep, even after an unexpected error, to preserve battery.
-        device.deep_sleep(config.SLEEP_INTERVAL_MIN)
+        # Retry sooner when offline; use configured interval once connected.
+        wifi_fail_interval = getattr(config, "SLEEP_INTERVAL_WIFI_FAIL_MIN", 60)
+        sleep_min = config.SLEEP_INTERVAL_MIN if wifi_ok else wifi_fail_interval
+        device.deep_sleep(sleep_min)
 
 
 if __name__ == "__main__":

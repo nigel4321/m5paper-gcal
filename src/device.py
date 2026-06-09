@@ -5,7 +5,7 @@ import network
 import M5
 
 
-def connect_wifi(ssid, password, timeout_s=15):
+def connect_wifi(ssid, password, timeout_s=20):
     """Connect to WiFi. Returns True on success, False on timeout."""
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
